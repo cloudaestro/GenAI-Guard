@@ -124,8 +124,8 @@ Two critical monitors are automatically created:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `BEDROCK_MODEL_ID` | Bedrock model identifier | `anthropic.claude-3-5-sonnet-20241022-v2:0` |
-| `DD_API_KEY` | Datadog API key | `577c60349a1fda20d9a640459cb907a3` |
-| `DD_APP_KEY` | Datadog application key | `b1f533b6575381888d732563f525462278f10caf` |
+| `DD_API_KEY` | Datadog API key | `Can use your own key` |
+| `DD_APP_KEY` | Datadog application key | `can use your own key` |
 | `DD_SITE` | Datadog site | `datadoghq.com` |
 | `DD_ENV` | Environment name | `dev` |
 | `DD_SERVICE` | Service name | `my-bedrock-proxy` |
@@ -136,7 +136,7 @@ Update `infra/variables.tf` or use `.tfvars` file:
 
 ```hcl
 aws_region         = "us-east-1"
-aws_account_id     = "327152655879"
+aws_account_id     = ""
 service_name       = "my-bedrock-proxy"
 bedrock_model_id   = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 # ... other variables
