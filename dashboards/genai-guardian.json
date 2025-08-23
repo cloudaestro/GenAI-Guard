@@ -1,0 +1,188 @@
+{
+  "title": "GenAI Guardian - my-bedrock-proxy",
+  "description": "Comprehensive monitoring dashboard for Bedrock proxy service",
+  "layout_type": "ordered",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "timeseries",
+        "title": "Request Rate (req/min)",
+        "show_legend": true,
+        "requests": [
+          {
+            "q": "sum:bedrock.requests.total{service:my-bedrock-proxy}.as_rate() * 60",
+            "display_type": "line",
+            "style": {
+              "palette": "dog_classic",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "min": "auto",
+          "max": "auto"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "timeseries",
+        "title": "Response Time Percentiles (ms)",
+        "show_legend": true,
+        "requests": [
+          {
+            "q": "p50:bedrock.latency_ms{service:my-bedrock-proxy}",
+            "display_type": "line",
+            "style": {
+              "palette": "green",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          },
+          {
+            "q": "p95:bedrock.latency_ms{service:my-bedrock-proxy}",
+            "display_type": "line",
+            "style": {
+              "palette": "orange",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          },
+          {
+            "q": "p99:bedrock.latency_ms{service:my-bedrock-proxy}",
+            "display_type": "line",
+            "style": {
+              "palette": "red",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "min": "0"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "timeseries",
+        "title": "Error Rate (%)",
+        "show_legend": true,
+        "requests": [
+          {
+            "q": "sum:bedrock.requests.errors{service:my-bedrock-proxy}.as_rate() / sum:bedrock.requests.total{service:my-bedrock-proxy}.as_rate() * 100",
+            "display_type": "line",
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "min": "0"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "query_value",
+        "title": "Total Requests (24h)",
+        "requests": [
+          {
+            "q": "sum:bedrock.requests.total{service:my-bedrock-proxy}.rollup(sum, 86400)",
+            "aggregator": "last"
+          }
+        ],
+        "precision": 0
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "type": "timeseries",
+        "title": "Token Usage",
+        "show_legend": true,
+        "requests": [
+          {
+            "q": "sum:bedrock.tokens_used{service:my-bedrock-proxy,type:total}.as_rate() * 60",
+            "display_type": "area",
+            "style": {
+              "palette": "purple",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "min": "0"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "type": "timeseries",
+        "title": "Cost per Hour (USD)",
+        "show_legend": true,
+        "requests": [
+          {
+            "q": "sum:bedrock.cost_usd{service:my-bedrock-proxy}.as_rate() * 3600",
+            "display_type": "line",
+            "style": {
+              "palette": "cool",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "min": "0"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "type": "toplist",
+        "title": "Top Users by Request Count",
+        "requests": [
+          {
+            "q": "top(sum:bedrock.requests.total{service:my-bedrock-proxy} by {user_id}, 10, 'sum', 'desc')"
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "definition": {
+        "type": "heatmap",
+        "title": "Latency Distribution",
+        "requests": [
+          {
+            "q": "avg:bedrock.latency_ms{service:my-bedrock-proxy}"
+          }
+        ]
+      }
+    }
+  ],
+  "template_variables": [
+    {
+      "name": "service",
+      "default": "my-bedrock-proxy",
+      "prefix": "service"
+    }
+  ],
+  "notify_list": [],
+  "reflow_type": "fixed"
+}
