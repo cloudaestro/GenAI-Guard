@@ -45,7 +45,7 @@ variable "datadog_site" {
 variable "github_repo" {
   description = "GitHub repository name"
   type        = string
-  default     = "my-bedrock-proxy"
+  default     = "GenAI-Guard"
 }
 
 variable "environment" {
