@@ -62,7 +62,7 @@ jobs:
                   "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                 },
                 "StringLike": {
-                  "token.actions.githubusercontent.com:sub": "repo:cloudaestro/GenAI-Guard:*"
+                  "token.actions.githubusercontent.com:sub": "repo:${{ github.repository }}:*"
                 }
               }
             }
@@ -77,6 +77,11 @@ jobs:
           --description "Role for GitHub Actions to deploy GenAI Guardian" \
           --tags Key=Name,Value=my-bedrock-proxy-github-actions-role Key=Environment,Value=dev \
           || echo "✅ IAM Role already exists (this is fine)"
+
+        # Ensure trust policy is up to date
+        aws iam update-assume-role-policy \
+          --role-name my-bedrock-proxy-github-actions-role \
+          --policy-document file://trust-policy.json
         
     - name: Create and Attach Policy
       run: |
@@ -91,6 +96,7 @@ jobs:
               "Effect": "Allow",
               "Action": [
                 "apprunner:*",
+                "iam:CreateServiceLinkedRole",
                 "iam:PassRole",
                 "iam:CreateRole",
                 "iam:AttachRolePolicy",
@@ -107,6 +113,23 @@ jobs:
                 "iam:PutRolePolicy",
                 "iam:GetRolePolicy",
                 "iam:DeleteRolePolicy"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "ecr:GetAuthorizationToken",
+                "ecr:CreateRepository",
+                "ecr:DescribeRepositories",
+                "ecr:GetRepositoryPolicy",
+                "ecr:SetRepositoryPolicy",
+                "ecr:ListImages",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:PutImage"
               ],
               "Resource": "*"
             },
