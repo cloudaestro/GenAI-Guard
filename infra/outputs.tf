@@ -3,11 +3,6 @@ output "app_runner_url" {
   value       = "https://${aws_apprunner_service.main.service_url}"
 }
 
-output "github_actions_role_arn" {
-  description = "ARN of the GitHub Actions IAM role"
-  value       = aws_iam_role.github_actions.arn
-}
-
 output "dashboard_url" {
   description = "Datadog dashboard URL"
   value       = "https://app.${var.datadog_site}/dashboard/${datadog_dashboard.main.id}"

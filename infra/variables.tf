@@ -26,14 +26,12 @@ variable "datadog_api_key" {
   description = "Datadog API key"
   type        = string
   sensitive   = true
-  default     = "577c60349a1fda20d9a640459cb907a3"
 }
 
 variable "datadog_app_key" {
   description = "Datadog application key"
   type        = string
   sensitive   = true
-  default     = "b1f533b6575381888d732563f525462278f10caf"
 }
 
 variable "datadog_site" {
@@ -45,11 +43,16 @@ variable "datadog_site" {
 variable "github_repo" {
   description = "GitHub repository name"
   type        = string
-  default     = "GenAI-Guard"
+  default     = "GenGuard"
 }
 
 variable "environment" {
   description = "Environment name"
   type        = string
   default     = "dev"
+}
+
+variable "container_image" {
+  description = "Full ECR image URI (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-bedrock-proxy:tag)"
+  type        = string
 }

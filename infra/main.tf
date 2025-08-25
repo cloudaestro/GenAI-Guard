@@ -8,90 +8,8 @@ provider "datadog" {
   api_url = "https://api.${var.datadog_site}"
 }
 
-# GitHub OIDC Provider
-resource "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
-
-  client_id_list = [
-    "sts.amazonaws.com",
-  ]
-
-  thumbprint_list = [
-    "6938fd4d98bab03faadb97b34396831e3780aea1",
-    "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
-  ]
-
-  tags = {
-    Name        = "${var.service_name}-github-oidc"
-    Environment = var.environment
-  }
-}
-
-# IAM Role for GitHub Actions
-resource "aws_iam_role" "github_actions" {
-  name = "${var.service_name}-github-actions-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Federated = aws_iam_openid_connect_provider.github.arn
-        }
-        Action = "sts:AssumeRoleWithWebIdentity"
-        Condition = {
-          StringEquals = {
-            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          }
-          StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:*/${var.github_repo}:*"
-          }
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "${var.service_name}-github-actions-role"
-    Environment = var.environment
-  }
-}
-
-# IAM Policy for GitHub Actions
-resource "aws_iam_role_policy" "github_actions_policy" {
-  name = "${var.service_name}-github-actions-policy"
-  role = aws_iam_role.github_actions.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "apprunner:*",
-          "iam:PassRole",
-          "iam:CreateRole",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:DeleteRole",
-          "iam:GetRole",
-          "iam:ListAttachedRolePolicies",
-          "iam:TagRole",
-          "iam:UntagRole"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "bedrock:InvokeModel"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
+## GitHub OIDC and GitHub Actions role are bootstrapped outside Terraform
+## (via .github/workflows/bootstrap.yml) to avoid drift/duplication.
 
 # IAM Role for App Runner
 resource "aws_iam_role" "app_runner_instance_role" {
@@ -140,6 +58,7 @@ resource "aws_apprunner_service" "main" {
   service_name = var.service_name
 
   source_configuration {
+    # Private ECR image pushed by CI
     image_repository {
       image_configuration {
         port = "8080"
@@ -154,9 +73,14 @@ resource "aws_apprunner_service" "main" {
         }
         start_command = "ddtrace-run uvicorn app.main:app --host 0.0.0.0 --port 8080"
       }
-      image_identifier      = "public.ecr.aws/docker/library/python:3.11-slim"
-      image_repository_type = "ECR_PUBLIC"
+      image_identifier      = var.container_image
+      image_repository_type = "ECR"
     }
+
+    authentication_configuration {
+      access_role_arn = aws_iam_role.apprunner_ecr_access.arn
+    }
+
     auto_deployments_enabled = false
   }
 
@@ -179,6 +103,34 @@ resource "aws_apprunner_service" "main" {
     Name        = var.service_name
     Environment = var.environment
   }
+}
+
+# IAM role for App Runner to pull from private ECR
+resource "aws_iam_role" "apprunner_ecr_access" {
+  name = "${var.service_name}-app-runner-ecr-access"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "build.apprunner.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.service_name}-app-runner-ecr-access"
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "apprunner_ecr_access_attachment" {
+  role       = aws_iam_role.apprunner_ecr_access.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
 }
 
 # Datadog Dashboard
