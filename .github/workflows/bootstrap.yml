@@ -1,0 +1,143 @@
+name: Bootstrap AWS Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_access_key_id:
+        description: 'AWS Access Key ID'
+        required: true
+      aws_secret_access_key:
+        description: 'AWS Secret Access Key'
+        required: true
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Configure AWS credentials (temporary)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ github.event.inputs.aws_access_key_id }}
+        aws-secret-access-key: ${{ github.event.inputs.aws_secret_access_key }}
+        aws-region: us-east-1
+        
+    - name: Get Account Info
+      id: account
+      run: |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+        echo "✅ AWS Account ID: $ACCOUNT_ID"
+        
+    - name: Create OIDC Provider
+      run: |
+        echo "🔧 Creating GitHub OIDC Provider..."
+        aws iam create-open-id-connect-provider \
+          --url https://token.actions.githubusercontent.com \
+          --client-id-list sts.amazonaws.com \
+          --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 1c58a3a8518e8759bf075b76b750d4f2df264fcd \
+          --tags Key=Name,Value=my-bedrock-proxy-github-oidc Key=Environment,Value=dev \
+          || echo "✅ OIDC Provider already exists (this is fine)"
+        
+    - name: Create IAM Role
+      run: |
+        echo "📝 Creating IAM Role..."
+        
+        # Create trust policy
+        cat > trust-policy.json << EOF
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "arn:aws:iam::${{ steps.account.outputs.ACCOUNT_ID }}:oidc-provider/token.actions.githubusercontent.com"
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                },
+                "StringLike": {
+                  "token.actions.githubusercontent.com:sub": "repo:cloudaestro/GenAI-Guard:*"
+                }
+              }
+            }
+          ]
+        }
+        EOF
+        
+        # Create role
+        aws iam create-role \
+          --role-name my-bedrock-proxy-github-actions-role \
+          --assume-role-policy-document file://trust-policy.json \
+          --description "Role for GitHub Actions to deploy GenAI Guardian" \
+          --tags Key=Name,Value=my-bedrock-proxy-github-actions-role Key=Environment,Value=dev \
+          || echo "✅ IAM Role already exists (this is fine)"
+        
+    - name: Create and Attach Policy
+      run: |
+        echo "🔐 Creating IAM Policy..."
+        
+        # Create policy document
+        cat > policy.json << EOF
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "apprunner:*",
+                "iam:PassRole",
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:DeleteRole",
+                "iam:GetRole",
+                "iam:ListAttachedRolePolicies",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:CreatePolicy",
+                "iam:DeletePolicy",
+                "iam:GetPolicy",
+                "iam:ListPolicyVersions",
+                "iam:PutRolePolicy",
+                "iam:GetRolePolicy",
+                "iam:DeleteRolePolicy"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "bedrock:InvokeModel",
+                "bedrock:ListFoundationModels"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+        EOF
+        
+        # Attach policy
+        aws iam put-role-policy \
+          --role-name my-bedrock-proxy-github-actions-role \
+          --policy-name my-bedrock-proxy-github-actions-policy \
+          --policy-document file://policy.json
+        
+        echo "✅ Policy attached successfully"
+        
+    - name: Bootstrap Complete
+      run: |
+        echo "## 🎉 Bootstrap Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**GitHub Actions Role ARN:** arn:aws:iam::${{ steps.account.outputs.ACCOUNT_ID }}:role/my-bedrock-proxy-github-actions-role" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Run the 'Test OIDC Connection' workflow to verify" >> $GITHUB_STEP_SUMMARY
+        echo "2. Run the 'Deploy to AWS' workflow for full deployment" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🚀 GitHub Actions OIDC is now configured!" >> $GITHUB_STEP_SUMMARY
