@@ -18,8 +18,8 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::327152655879:role/my-bedrock-proxy-github-actions-role
-        aws-region: us-east-1
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+        aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
         
     - name: Test AWS Connection
       run: |
